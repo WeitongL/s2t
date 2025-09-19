@@ -5,7 +5,21 @@ from fastapi.responses import JSONResponse
 from app.stt_engine import transcribe_audio
 
 router = APIRouter()
+from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+import os
 
+app = FastAPI()
+
+# Serve static files (JS, CSS, etc) from /static under /static/
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+# Redirect "/" to your index.html (not /docs)
+@app.get("/", include_in_schema=False)
+async def root():
+    return FileResponse(os.path.join("static", "index.html"))
 @router.get("/health")
 def health():
     return {"status": "ok"}
