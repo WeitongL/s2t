@@ -37,8 +37,8 @@ jobs:
 
       - name: Build & push
         run: |
-          docker build -t youruser/s2t:latest .
-          docker push youruser/s2t:latest
+          docker build -t weitongluo/s2t:latest .
+          docker push weitongluo/s2t:latest
 
   deploy:
     if: github.ref == 'refs/heads/main'
