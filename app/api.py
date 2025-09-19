@@ -13,13 +13,13 @@ import os
 app = FastAPI()
 
 # Serve static files (JS, CSS, etc) from /static under /static/
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("./static", StaticFiles(directory="static"), name="static")
 
 
 # Redirect "/" to your index.html (not /docs)
-@app.get("/", include_in_schema=False)
-async def root():
-    return FileResponse(os.path.join("static", "index.html"))
+@app.get("/")
+def read_index():
+    return FileResponse("static/index.html")
 @router.get("/health")
 def health():
     return {"status": "ok"}
