@@ -40,19 +40,4 @@ jobs:
           docker build -t weitongluo/s2t:latest .
           docker push weitongluo/s2t:latest
 
-  deploy:
-    if: github.ref == 'refs/heads/main'
-    needs: docker-build-push
-    runs-on: ubuntu-latest
-    steps:
-      - name: SSH & deploy
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          script: |
-            cd /srv/s2t
-            git pull
-            docker-compose down
-            docker-compose up -d --build
+
