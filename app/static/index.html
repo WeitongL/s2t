@@ -2,33 +2,54 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Upload WAV File</title>
+  <title>Upload or Record WAV</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body { font-family: Arial, sans-serif; background:#fafbfc; padding:30px; }
-    .container { max-width:440px; margin:50px auto; background:#fff; border-radius:8px; box-shadow:0 2px 12px #0001; padding:30px; }
+    .container { max-width:500px; margin:50px auto; background:#fff; border-radius:8px; box-shadow:0 2px 12px #0001; padding:30px; }
     h1 { font-size:1.4rem; margin-bottom:18px; }
     input[type="file"] { margin-bottom:18px; }
-    button { background:#2176FF; color:#fff; border:none; padding:12px 26px; border-radius:5px; font-size:1rem; cursor:pointer; }
+    button { background:#2176FF; color:#fff; border:none; padding:12px 26px; border-radius:5px; font-size:1rem; cursor:pointer; margin-right:8px; }
+    button:disabled { background:#999; cursor:not-allowed; }
     .status { margin-top:20px; color: #222; font-size:1.08rem; min-height:1.3em;}
     .transcription { margin-top:18px; background:#f7f7f7; border-radius:5px; padding:12px; border:1px solid #eee; font-size:1.08rem;}
+    canvas { display:block; margin-top:20px; background:#f7f7f7; border:1px solid #ccc; border-radius:5px; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Upload WAV File</h1>
+    <h1>Upload WAV File or Record Live</h1>
+
     <input type="file" id="wavInput" accept=".wav,audio/wav" />
     <br>
-    <button id="uploadBtn">Transcribe</button>
+    <button id="uploadBtn">Transcribe Uploaded File</button>
+    <br><br>
+
+    <button id="recordBtn">Start Recording</button>
+    <button id="stopBtn" disabled>Stop Recording</button>
+    <canvas id="waveform" width="460" height="100"></canvas>
+
     <div class="status" id="status"></div>
     <div class="transcription" id="result" style="display:none;"></div>
   </div>
+
   <script>
     const uploadBtn = document.getElementById('uploadBtn');
     const wavInput = document.getElementById('wavInput');
     const status = document.getElementById('status');
     const result = document.getElementById('result');
+    const recordBtn = document.getElementById('recordBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const canvas = document.getElementById('waveform');
+    const ctx = canvas.getContext('2d');
 
+    let mediaRecorder;
+    let audioChunks = [];
+    let audioContext, analyser, source, dataArray, animationId;
+
+    // ------------------------
+    // File upload transcription
+    // ------------------------
     uploadBtn.onclick = async function() {
       status.textContent = '';
       result.style.display = "none";
@@ -40,12 +61,95 @@
       }
 
       const file = wavInput.files[0];
+      await sendFile(file);
+    };
+
+    // ------------------------
+    // Live recording
+    // ------------------------
+    recordBtn.onclick = async () => {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Your browser does not support audio recording.");
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioContext = new AudioContext();
+        analyser = audioContext.createAnalyser();
+        source = audioContext.createMediaStreamSource(stream);
+        source.connect(analyser);
+        analyser.fftSize = 2048;
+        const bufferLength = analyser.fftSize;
+        dataArray = new Uint8Array(bufferLength);
+
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = e => {
+          if (e.data.size > 0) audioChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+          cancelAnimationFrame(animationId);
+          ctx.clearRect(0,0,canvas.width,canvas.height);
+          const blob = new Blob(audioChunks, { type: 'audio/wav' });
+          await sendFile(blob);
+        };
+
+        mediaRecorder.start();
+        recordBtn.disabled = true;
+        stopBtn.disabled = false;
+        status.textContent = "Recording...";
+        drawWaveform();
+      } catch (err) {
+        status.textContent = "Error accessing microphone.";
+        console.error(err);
+      }
+    };
+
+    stopBtn.onclick = () => {
+      if (mediaRecorder && mediaRecorder.state !== "inactive") {
+        mediaRecorder.stop();
+        recordBtn.disabled = false;
+        stopBtn.disabled = true;
+        status.textContent = "Processing recording...";
+      }
+    };
+
+    // ------------------------
+    // Waveform drawing
+    // ------------------------
+    function drawWaveform() {
+      animationId = requestAnimationFrame(drawWaveform);
+      analyser.getByteTimeDomainData(dataArray);
+      ctx.fillStyle = '#f7f7f7';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#2176FF';
+      ctx.beginPath();
+      const sliceWidth = canvas.width / dataArray.length;
+      let x = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = v * canvas.height / 2;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+        x += sliceWidth;
+      }
+      ctx.lineTo(canvas.width, canvas.height/2);
+      ctx.stroke();
+    }
+
+    // ------------------------
+    // Helper to send file or blob to server
+    // ------------------------
+    async function sendFile(file) {
       const formData = new FormData();
-      formData.append('file', file); // match FastAPI's UploadFile = File(...)
+      formData.append('file', file);
       status.textContent = "Uploading, please wait...";
 
       try {
-        // CHANGE the URL below if needed
         const response = await fetch("/transcribe", {
           method: "POST",
           body: formData
@@ -55,6 +159,7 @@
           status.textContent = `Error: ${response.status} - ${await response.text()}`;
           return;
         }
+
         let data;
         try {
           data = await response.json();
@@ -68,7 +173,7 @@
       } catch (err) {
         status.textContent = "Upload error or server/network issue.";
       }
-    };
+    }
   </script>
 </body>
 </html>
