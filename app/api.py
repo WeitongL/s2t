@@ -13,9 +13,10 @@ import os
 app = FastAPI()
 
 # Serve static files (JS, CSS, etc) from /static under /static/
-app.mount("./static", StaticFiles(directory="static"), name="static")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
 
-
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 # Redirect "/" to your index.html (not /docs)
 @app.get("/")
 def read_index():
