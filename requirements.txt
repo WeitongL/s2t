@@ -1,6 +1,7 @@
 fastapi
 uvicorn
-requests
-pytest
-faster-whisper
 httpx
+pytest
+requests
+faster-whisper
+python-multipart
