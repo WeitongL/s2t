@@ -7,7 +7,7 @@ Python/FastAPI app for open-source audio transcription using [faster-whisper]. D
 
 ```bash
 git clone <repo>
-cd speech2Text
+cd s2t
 python3 -m venv venv
 . venv/bin/activate
 pip install -r requirements.txt
