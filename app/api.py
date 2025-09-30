@@ -1,14 +1,13 @@
 import os
-from fastapi import APIRouter, UploadFile, File, HTTPException, FastAPI
-from fastapi.responses import JSONResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi.responses import JSONResponse
 from app.stt_engine import transcribe_audio
 
 router = APIRouter()
 
 SUPPORTED_TYPES = ["audio/wav", "audio/x-wav", "audio/mpeg"]
 SUPPORTED_EXTENSIONS = [".wav", ".mp3"]
-# MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
 
 @router.get("/health")
 def health():
@@ -22,15 +21,18 @@ async def transcribe(file: UploadFile = File(...)):
             status_code=400,
             detail="Unsupported file format. Only WAV or MP3 allowed."
         )
-    # content = await file.read()
-    # if len(content) > MAX_FILE_SIZE:
-    #     raise HTTPException(
-    #         status_code=413,
-    #         detail="File size exceeds 5 MB limit."
-    #     )
+
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail="File size exceeds 5 MB limit."
+        )
+
+    # Rewind the file so transcribe_audio can read it again
+    await file.seek(0)
 
     transcript = await transcribe_audio(file)
     if transcript is None:
         return JSONResponse(status_code=500, content={"error": "Transcription failed"})
     return {"transcript": transcript}
-
