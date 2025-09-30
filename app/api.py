@@ -8,7 +8,7 @@ router = APIRouter()
 
 SUPPORTED_TYPES = ["audio/wav", "audio/x-wav", "audio/mpeg"]
 SUPPORTED_EXTENSIONS = [".wav", ".mp3"]
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+# MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
 
 @router.get("/health")
 def health():
@@ -22,12 +22,12 @@ async def transcribe(file: UploadFile = File(...)):
             status_code=400,
             detail="Unsupported file format. Only WAV or MP3 allowed."
         )
-    content = await file.read()
-    if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=413,
-            detail="File size exceeds 5 MB limit."
-        )
+    # content = await file.read()
+    # if len(content) > MAX_FILE_SIZE:
+    #     raise HTTPException(
+    #         status_code=413,
+    #         detail="File size exceeds 5 MB limit."
+    #     )
 
     transcript = await transcribe_audio(file)
     if transcript is None:
